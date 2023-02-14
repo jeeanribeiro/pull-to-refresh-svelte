@@ -1,14 +1,15 @@
-<script lang="typescript">
+<script lang="ts">
     import { onDestroy, onMount } from 'svelte'
     import { tweened } from 'svelte/motion'
     import { quintOut } from 'svelte/easing'
 
     export let callback = async (): Promise<void> => {}
-    export let eventTarget: HTMLElement | Window = window
+    export let eventTarget: HTMLElement | Window
     export let isRefreshing = false
-    export let platform = 'android'
+    export let platform: 'android' | 'ios'
+    export let screenHeight: number
 
-    const SWIPE_MAX = window.screen.availHeight / 2
+    const SWIPE_MAX = screenHeight / 2
     const DEFAULT_ANIMATION_DURATION = 350 // ms
     const DEFAULT_ANIMATION_VALUES = {
         arrowScale: 0,
@@ -99,17 +100,17 @@
     }
 
     onMount(() => {
-        eventTarget.addEventListener('touchstart', onTouchStart as EventListener)
-        eventTarget.addEventListener('touchmove', onTouchMove as EventListener)
-        eventTarget.addEventListener('touchend', onTouchEnd as EventListener)
-        eventTarget.addEventListener('touchcancel', onTouchCancel as EventListener)
+        eventTarget?.addEventListener('touchstart', onTouchStart as EventListener)
+        eventTarget?.addEventListener('touchmove', onTouchMove as EventListener)
+        eventTarget?.addEventListener('touchend', onTouchEnd as EventListener)
+        eventTarget?.addEventListener('touchcancel', onTouchCancel as EventListener)
     })
 
     onDestroy(() => {
-        eventTarget.removeEventListener('touchstart', onTouchStart as EventListener)
-        eventTarget.removeEventListener('touchmove', onTouchMove as EventListener)
-        eventTarget.removeEventListener('touchend', onTouchEnd as EventListener)
-        eventTarget.removeEventListener('touchcancel', onTouchCancel as EventListener)
+        eventTarget?.removeEventListener('touchstart', onTouchStart as EventListener)
+        eventTarget?.removeEventListener('touchmove', onTouchMove as EventListener)
+        eventTarget?.removeEventListener('touchend', onTouchEnd as EventListener)
+        eventTarget?.removeEventListener('touchcancel', onTouchCancel as EventListener)
     })
 </script>
 
@@ -142,7 +143,7 @@
     />
 {/if}
 
-<style type="text/scss">
+<style lang="scss">
     android-refresher,
     ios-refresher {
         align-items: center;
