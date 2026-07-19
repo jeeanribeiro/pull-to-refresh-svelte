@@ -19,6 +19,10 @@
 		maxPull?: number;
 		/** Disables the gesture entirely. */
 		disabled?: boolean;
+		/** Fire a short haptic tick (where supported) when the pull arms. */
+		vibrate?: boolean;
+		/** Announced to screen readers while the refresh runs. */
+		refreshingLabel?: string;
 		/** Custom indicator snippet; receives a live progress snapshot. */
 		indicator?: Snippet<[PullProgress]>;
 		/** Content the gesture is attached to. */
@@ -33,6 +37,8 @@
 		threshold = 80,
 		maxPull,
 		disabled = false,
+		vibrate = true,
+		refreshingLabel = 'Refreshing content',
 		indicator,
 		children,
 		class: className = ''
@@ -125,7 +131,11 @@
 		}
 		const pos = rubberBand(event.clientY - startY, effectiveMaxPull);
 		position.set(pos, { duration: 0 });
-		phase = pos >= threshold ? 'armed' : 'pulling';
+		const next = pos >= threshold ? 'armed' : 'pulling';
+		if (next === 'armed' && phase !== 'armed' && vibrate) {
+			navigator.vibrate?.(10);
+		}
+		phase = next;
 	}
 
 	function onPointerUp(event: PointerEvent): void {
@@ -191,8 +201,13 @@
 	});
 </script>
 
-<div class="ptr {className}" data-phase={phase} bind:this={root}>
-	<div class="ptr-indicator" style:transform="translate3d(0, {position.current}px, 0)">
+<div class="ptr {className}" data-phase={phase} aria-busy={refreshing} bind:this={root}>
+	<div
+		class="ptr-indicator"
+		class:idle={phase === 'idle'}
+		aria-hidden="true"
+		style:transform="translate3d(0, {position.current}px, 0)"
+	>
 		{#if indicator}
 			{@render indicator(snapshot)}
 		{:else if resolvedPlatform === 'ios'}
@@ -200,6 +215,9 @@
 		{:else}
 			<MaterialSpinner {progress} {refreshing} />
 		{/if}
+	</div>
+	<div class="ptr-status" role="status" aria-live="polite">
+		{refreshing ? refreshingLabel : ''}
 	</div>
 	{@render children()}
 </div>
@@ -213,11 +231,29 @@
 		display: flex;
 		justify-content: center;
 		left: 0;
+		opacity: 1;
 		pointer-events: none;
 		position: absolute;
 		right: 0;
 		top: calc(-1 * var(--ptr-indicator-size, 38px) - 10px);
+		transition: opacity 150ms ease-out;
 		will-change: transform;
 		z-index: var(--ptr-z-index, 999);
+	}
+
+	.ptr-indicator.idle {
+		opacity: 0;
+	}
+
+	.ptr-status {
+		border: 0;
+		clip-path: inset(50%);
+		height: 1px;
+		margin: -1px;
+		overflow: hidden;
+		padding: 0;
+		position: absolute;
+		white-space: nowrap;
+		width: 1px;
 	}
 </style>
