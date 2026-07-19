@@ -15,7 +15,7 @@
 		platform?: Platform;
 		/** Resisted travel (px) required to arm a refresh. */
 		threshold?: number;
-		/** Raw finger travel (px) at which resistance saturates. */
+		/** Raw finger travel (px) at which resistance saturates. Defaults to half the viewport height, measured on the client. */
 		maxPull?: number;
 		/** Disables the gesture entirely. */
 		disabled?: boolean;
@@ -31,7 +31,7 @@
 		onrefresh,
 		platform = 'auto',
 		threshold = 80,
-		maxPull = window.screen.availHeight / 2,
+		maxPull,
 		disabled = false,
 		indicator,
 		children,
@@ -41,6 +41,15 @@
 	const SETTLE_MS = 350;
 
 	let phase = $state<PullPhase>('idle');
+
+	// The original read window.screen.availHeight at init, which crashes SSR.
+	// Measure lazily on the client instead; $effect never runs on the server.
+	let viewportMax = $state(320);
+	const effectiveMaxPull = $derived(maxPull ?? viewportMax);
+
+	$effect(() => {
+		viewportMax = Math.max(160, window.screen.availHeight / 2);
+	});
 
 	const position = new Tween(0, { duration: 0, easing: quintOut });
 	const progress = $derived(position.current / threshold);
@@ -67,7 +76,7 @@
 		if (phase !== 'pulling' && phase !== 'armed') return;
 		const touch = event.touches[0];
 		if (!touch) return;
-		const pos = rubberBand(touch.clientY - startY, maxPull);
+		const pos = rubberBand(touch.clientY - startY, effectiveMaxPull);
 		position.set(pos, { duration: 0 });
 		phase = pos >= threshold ? 'armed' : 'pulling';
 	}
