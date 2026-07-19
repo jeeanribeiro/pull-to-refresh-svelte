@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import PhoneDemo from './PhoneDemo.svelte';
 </script>
 
@@ -68,6 +69,15 @@
 					CSS custom properties for the built-ins, or bring your own indicator as a snippet.
 				</p>
 			</div>
+		</section>
+
+		<section class="mt-14 flex flex-col items-center gap-3">
+			<img
+				src="{base}/qr.svg"
+				alt="QR code linking to this demo"
+				class="h-36 w-36 rounded-xl bg-white p-2"
+			/>
+			<p class="text-sm text-[#6b7485]">Scan to try the real gesture on your phone</p>
 		</section>
 
 		<footer class="mt-14 text-center text-sm text-[#6b7485]">
