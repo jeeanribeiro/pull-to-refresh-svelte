@@ -161,19 +161,32 @@
 		});
 	}
 
+	/**
+	 * While a pull is active the browser must not start scrolling (which
+	 * would fire pointercancel and kill the gesture). This is the only
+	 * non-passive listener, it is scoped to the component instead of the
+	 * window, and it only prevents the default mid-pull.
+	 */
+	function interceptTouchMove(event: TouchEvent): void {
+		if (phase === 'pulling' || phase === 'armed') event.preventDefault();
+	}
+
 	$effect(() => {
 		const el = root;
 		if (disabled || !el) return;
+		const passive: AddEventListenerOptions = { passive: true };
 		// The gesture must start inside the component, not anywhere on the page.
-		el.addEventListener('pointerdown', onPointerDown);
-		window.addEventListener('pointermove', onPointerMove);
-		window.addEventListener('pointerup', onPointerUp);
-		window.addEventListener('pointercancel', onPointerCancel);
+		el.addEventListener('pointerdown', onPointerDown, passive);
+		window.addEventListener('pointermove', onPointerMove, passive);
+		window.addEventListener('pointerup', onPointerUp, passive);
+		window.addEventListener('pointercancel', onPointerCancel, passive);
+		el.addEventListener('touchmove', interceptTouchMove, { passive: false });
 		return () => {
 			el.removeEventListener('pointerdown', onPointerDown);
 			window.removeEventListener('pointermove', onPointerMove);
 			window.removeEventListener('pointerup', onPointerUp);
 			window.removeEventListener('pointercancel', onPointerCancel);
+			el.removeEventListener('touchmove', interceptTouchMove);
 		};
 	});
 </script>
