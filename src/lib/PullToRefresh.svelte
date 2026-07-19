@@ -51,13 +51,13 @@
 	let phase = $state<PullPhase>('idle');
 
 	// The original read window.screen.availHeight at init, which crashes SSR.
-	// Measure lazily on the client instead; $effect never runs on the server.
-	let viewportMax = $state(320);
-	const effectiveMaxPull = $derived(maxPull ?? viewportMax);
-
-	$effect(() => {
-		viewportMax = Math.max(160, window.screen.availHeight / 2);
-	});
+	// Measure per gesture instead: SSR never touches window, and the value
+	// stays correct after a device rotation.
+	function effectiveMaxPull(): number {
+		if (maxPull !== undefined) return maxPull;
+		if (typeof window === 'undefined') return 320;
+		return Math.max(160, window.screen.availHeight / 2);
+	}
 
 	const position = new Tween(0, { duration: 0, easing: quintOut });
 	const progress = $derived(position.current / threshold);
@@ -129,7 +129,7 @@
 			phase = 'pulling';
 			startY = event.clientY; // measure the pull from the lock point
 		}
-		const pos = rubberBand(event.clientY - startY, effectiveMaxPull);
+		const pos = rubberBand(event.clientY - startY, effectiveMaxPull());
 		position.set(pos, { duration: 0 });
 		const next = pos >= threshold ? 'armed' : 'pulling';
 		if (next === 'armed' && phase !== 'armed' && vibrate) {
