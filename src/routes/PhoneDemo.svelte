@@ -152,6 +152,7 @@
 		background: #fff;
 		border-bottom: 1px solid #eceae5;
 		padding: 12px 20px;
+		text-align: left;
 	}
 
 	.row {
