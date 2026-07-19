@@ -1,5 +1,23 @@
 import '@testing-library/jest-dom/vitest';
 
+// jsdom has no matchMedia; svelte/motion queries prefers-reduced-motion.
+if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
+	Object.defineProperty(window, 'matchMedia', {
+		writable: true,
+		value: (query: string): MediaQueryList =>
+			({
+				matches: false,
+				media: query,
+				onchange: null,
+				addEventListener: () => {},
+				removeEventListener: () => {},
+				addListener: () => {},
+				removeListener: () => {},
+				dispatchEvent: () => false
+			}) as MediaQueryList
+	});
+}
+
 // jsdom does not implement PointerEvent. The component only reads MouseEvent
 // fields plus pointerId / pointerType / isPrimary, so a small shim is enough
 // to drive realistic pointer sequences in component tests.
