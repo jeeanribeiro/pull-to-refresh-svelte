@@ -96,7 +96,8 @@
 			el = el.parentElement;
 		}
 		if (root && isScrollable(root)) return root.scrollTop;
-		return document.scrollingElement?.scrollTop ?? 0;
+		const doc = document.scrollingElement ?? document.documentElement;
+		return doc ? doc.scrollTop : 0;
 	}
 
 	function stopTracking(): void {
