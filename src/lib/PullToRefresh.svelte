@@ -62,26 +62,30 @@
 		refreshing
 	});
 
+	// The original listened to touch events only, so the gesture was dead on
+	// desktop. Pointer Events cover touch, mouse and pen with one code path.
+	let pointerId = -1;
 	let startY = 0;
 
-	function onTouchStart(event: TouchEvent): void {
+	function onPointerDown(event: PointerEvent): void {
 		if (disabled || phase === 'refreshing' || phase === 'settling') return;
-		const touch = event.touches[0];
-		if (!touch) return;
-		startY = touch.clientY;
+		if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
+		pointerId = event.pointerId;
+		startY = event.clientY;
 		phase = 'pulling';
 	}
 
-	function onTouchMove(event: TouchEvent): void {
+	function onPointerMove(event: PointerEvent): void {
+		if (event.pointerId !== pointerId) return;
 		if (phase !== 'pulling' && phase !== 'armed') return;
-		const touch = event.touches[0];
-		if (!touch) return;
-		const pos = rubberBand(touch.clientY - startY, effectiveMaxPull);
+		const pos = rubberBand(event.clientY - startY, effectiveMaxPull);
 		position.set(pos, { duration: 0 });
 		phase = pos >= threshold ? 'armed' : 'pulling';
 	}
 
-	function onTouchEnd(): void {
+	function onPointerUp(event: PointerEvent): void {
+		if (event.pointerId !== pointerId) return;
+		pointerId = -1;
 		if (phase === 'armed') {
 			void refresh();
 		} else if (phase === 'pulling') {
@@ -89,7 +93,9 @@
 		}
 	}
 
-	function onTouchCancel(): void {
+	function onPointerCancel(event: PointerEvent): void {
+		if (event.pointerId !== pointerId) return;
+		pointerId = -1;
 		if (phase === 'pulling' || phase === 'armed') settle();
 	}
 
@@ -112,15 +118,15 @@
 
 	$effect(() => {
 		if (disabled) return;
-		window.addEventListener('touchstart', onTouchStart as EventListener);
-		window.addEventListener('touchmove', onTouchMove as EventListener);
-		window.addEventListener('touchend', onTouchEnd as EventListener);
-		window.addEventListener('touchcancel', onTouchCancel as EventListener);
+		window.addEventListener('pointerdown', onPointerDown);
+		window.addEventListener('pointermove', onPointerMove);
+		window.addEventListener('pointerup', onPointerUp);
+		window.addEventListener('pointercancel', onPointerCancel);
 		return () => {
-			window.removeEventListener('touchstart', onTouchStart as EventListener);
-			window.removeEventListener('touchmove', onTouchMove as EventListener);
-			window.removeEventListener('touchend', onTouchEnd as EventListener);
-			window.removeEventListener('touchcancel', onTouchCancel as EventListener);
+			window.removeEventListener('pointerdown', onPointerDown);
+			window.removeEventListener('pointermove', onPointerMove);
+			window.removeEventListener('pointerup', onPointerUp);
+			window.removeEventListener('pointercancel', onPointerCancel);
 		};
 	});
 </script>
