@@ -11,10 +11,7 @@ describe('detectPlatform', () => {
 	});
 
 	it('detects iPhones', () => {
-		stubNavigator(
-			'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15',
-			5
-		);
+		stubNavigator('Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15', 5);
 		expect(detectPlatform()).toBe('ios');
 	});
 
