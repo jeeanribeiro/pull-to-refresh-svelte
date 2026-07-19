@@ -39,7 +39,9 @@
 	}: Props = $props();
 
 	const SETTLE_MS = 350;
+	const DIRECTION_SLOP = 8;
 
+	let root = $state<HTMLDivElement>();
 	let phase = $state<PullPhase>('idle');
 
 	// The original read window.screen.availHeight at init, which crashes SSR.
@@ -65,27 +67,70 @@
 	// The original listened to touch events only, so the gesture was dead on
 	// desktop. Pointer Events cover touch, mouse and pen with one code path.
 	let pointerId = -1;
+	let startX = 0;
 	let startY = 0;
+	let tracking = false;
+
+	function isScrollable(el: Element): boolean {
+		if (el.scrollHeight <= el.clientHeight) return false;
+		const { overflowY } = getComputedStyle(el);
+		return overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay';
+	}
+
+	/**
+	 * The original armed on any downward drag anywhere on the page. A pull
+	 * may only begin when the content under the finger is scrolled to the
+	 * top: walk from the event target up to the wrapper looking for the
+	 * nearest scroll container, falling back to the document.
+	 */
+	function gateScrollTop(from: Element | null): number {
+		let el: Element | null = from;
+		while (el && el !== root) {
+			if (isScrollable(el)) return el.scrollTop;
+			el = el.parentElement;
+		}
+		if (root && isScrollable(root)) return root.scrollTop;
+		return document.scrollingElement?.scrollTop ?? 0;
+	}
+
+	function stopTracking(): void {
+		tracking = false;
+		pointerId = -1;
+	}
 
 	function onPointerDown(event: PointerEvent): void {
 		if (disabled || phase === 'refreshing' || phase === 'settling') return;
 		if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
+		if (gateScrollTop(event.target as Element | null) > 0) return;
 		pointerId = event.pointerId;
+		startX = event.clientX;
 		startY = event.clientY;
-		phase = 'pulling';
+		tracking = true;
 	}
 
 	function onPointerMove(event: PointerEvent): void {
-		if (event.pointerId !== pointerId) return;
-		if (phase !== 'pulling' && phase !== 'armed') return;
+		if (!tracking || event.pointerId !== pointerId) return;
+		if (phase === 'idle') {
+			// Direction lock: the raw clientY delta used to win even when the
+			// user was clearly panning sideways or scrolling up.
+			const dx = event.clientX - startX;
+			const dy = event.clientY - startY;
+			if (Math.abs(dx) < DIRECTION_SLOP && Math.abs(dy) < DIRECTION_SLOP) return;
+			if (Math.abs(dx) > dy) {
+				stopTracking();
+				return;
+			}
+			phase = 'pulling';
+			startY = event.clientY; // measure the pull from the lock point
+		}
 		const pos = rubberBand(event.clientY - startY, effectiveMaxPull);
 		position.set(pos, { duration: 0 });
 		phase = pos >= threshold ? 'armed' : 'pulling';
 	}
 
 	function onPointerUp(event: PointerEvent): void {
-		if (event.pointerId !== pointerId) return;
-		pointerId = -1;
+		if (!tracking || event.pointerId !== pointerId) return;
+		stopTracking();
 		if (phase === 'armed') {
 			void refresh();
 		} else if (phase === 'pulling') {
@@ -94,8 +139,8 @@
 	}
 
 	function onPointerCancel(event: PointerEvent): void {
-		if (event.pointerId !== pointerId) return;
-		pointerId = -1;
+		if (!tracking || event.pointerId !== pointerId) return;
+		stopTracking();
 		if (phase === 'pulling' || phase === 'armed') settle();
 	}
 
@@ -117,13 +162,15 @@
 	}
 
 	$effect(() => {
-		if (disabled) return;
-		window.addEventListener('pointerdown', onPointerDown);
+		const el = root;
+		if (disabled || !el) return;
+		// The gesture must start inside the component, not anywhere on the page.
+		el.addEventListener('pointerdown', onPointerDown);
 		window.addEventListener('pointermove', onPointerMove);
 		window.addEventListener('pointerup', onPointerUp);
 		window.addEventListener('pointercancel', onPointerCancel);
 		return () => {
-			window.removeEventListener('pointerdown', onPointerDown);
+			el.removeEventListener('pointerdown', onPointerDown);
 			window.removeEventListener('pointermove', onPointerMove);
 			window.removeEventListener('pointerup', onPointerUp);
 			window.removeEventListener('pointercancel', onPointerCancel);
@@ -131,7 +178,7 @@
 	});
 </script>
 
-<div class="ptr {className}" data-phase={phase}>
+<div class="ptr {className}" data-phase={phase} bind:this={root}>
 	<div class="ptr-indicator" style:transform="translate3d(0, {position.current}px, 0)">
 		{#if indicator}
 			{@render indicator(snapshot)}
