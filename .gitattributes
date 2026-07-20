@@ -1,0 +1,8 @@
+# Prettier enforces LF, so make every checkout agree with it —
+# without this, a Windows clone with core.autocrlf=true gets CRLF
+# working files and `pnpm lint` fails on all of them.
+* text=auto eol=lf
+
+*.png binary
+*.ico binary
+*.woff2 binary
